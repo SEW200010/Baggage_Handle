@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 
 export default function Navbar() {
   const location = useLocation();
@@ -12,50 +13,67 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-slate-900 text-white border-b border-slate-800 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-600 px-3 py-1.5 rounded font-bold text-sm tracking-wide">
-            GBS
+    <nav style={{ fontFamily: '"Times New Roman", Times, serif' }} className="bg-slate-900 border-b-4 border-amber-400 shadow-md text-white sticky top-0 z-50">
+      <div className="w-full px-6 lg:px-12 h-20 grid grid-cols-3 items-center">
+        
+        <div className="flex items-center space-x-3 justify-start">
+          <div className="bg-amber-400 border-white text-black p-2.5 rounded-xl font-bold tracking-wider border border-amber-500 shadow-lg flex items-center justify-center">
+            <Settings className="w-11 h-11 text-black animate-spin-slow" />
           </div>
-          <span className="font-semibold text-base tracking-wide">
-            Ground Baggage System <span className="text-xs text-slate-400 font-normal ml-2">| Maintenance Portal</span>
-          </span>
+          <div>
+            <span className="text-[35px] tracking-wide text-white font-bold block leading-tight">
+              TechOps
+            </span>
+            <span className="text-[20px] text-amber-400 uppercase tracking-widest block font-semibold">
+              Equipment Maintenance
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          {isLoggedIn ? (
+        <div className="flex items-center justify-center space-x-3">
+          {isLoggedIn && (
             <>
               <Link 
                 to="/" 
-                className={`px-3 py-1.5 rounded text-sm font-medium transition ${
-                  location.pathname === '/' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                className={`px-4 py-3 rounded-xl text-xl border-white font-bold transition ${
+                  location.pathname === '/' 
+                    ? 'bg-amber-400 text-black border border-amber-500 shadow-sm' 
+                    : 'bg-slate-800/60 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700/50'
                 }`}
               >
                 Report Bug
               </Link>
               <Link 
                 to="/admin" 
-                className={`px-3 py-1.5 rounded text-sm font-medium transition ${
-                  location.pathname === '/admin' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                className={`px-4 py-3 rounded-xl text-xl font-bold transition ${
+                  location.pathname === '/admin' 
+                    ? 'bg-amber-400 text-black border border-amber-500 shadow-sm' 
+                    : 'bg-slate-800/60 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700/50'
                 }`}
               >
                 Dashboard
               </Link>
-              <button 
-                onClick={handleLogout} 
-                className="text-sm font-medium text-rose-400 hover:text-rose-300 px-3 py-1.5 rounded hover:bg-slate-800 transition"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="text-sm font-medium text-slate-300 hover:text-white px-3 py-1.5">Login</Link>
-              <Link to="/register" className="text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded transition">Register</Link>
             </>
           )}
         </div>
+
+        {/* Right: Auth / Logout Section */}
+        <div className="flex items-center justify-end space-x-3">
+          {isLoggedIn ? (
+            <button 
+              onClick={handleLogout} 
+              className="text-xl text-rose-400 hover:text-rose-300 px-6 py-4 rounded-xl hover:bg-slate-800 transition font-bold border border-rose-500"
+            >
+              Logout
+            </button>
+          ) : (
+            <>
+              <Link to="/login" className="text-sm text-slate-300 hover:text-white px-4 py-2 font-bold border border-slate-700/50">Login</Link>
+              <Link to="/register" className="text-sm bg-amber-400 hover:bg-amber-500 text-black font-bold px-5 py-2.5 rounded-xl transition shadow-sm border border-amber-500">Register</Link>
+            </>
+          )}
+        </div>
+
       </div>
     </nav>
   );
