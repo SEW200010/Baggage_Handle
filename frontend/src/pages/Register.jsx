@@ -20,12 +20,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md border border-slate-200">
-        <h2 className="text-xl font-bold text-slate-800 mb-1">Staff Registration</h2>
-        <p className="text-sm text-slate-500 mb-6">Create a new account for bug reporting.</p>
+    <div style={{ fontFamily: '"Times New Roman", Times, serif' }} className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center px-4 py-8">
+      <div className="max-w-md w-full bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200">
+        <div className="text-black p-8  text-center">
+          <h2 className="text-xl text-center sm:text-3xl font-bold mb-1">Staff Registration</h2>
+          <p className="text-xs text-center sm:text-lg mb-6">Create a new account for bug reporting.</p>
+        </div>
 
-        {error && <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded">{error}</div>}
+        {error && <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm rounded-xl">{error}</div>}
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
@@ -35,7 +37,8 @@ export default function Register() {
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               required 
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600" 
+              placeholder="e.g. John Doe"
+              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900" 
             />
           </div>
           <div>
@@ -45,7 +48,8 @@ export default function Register() {
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
               required 
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600" 
+              placeholder="e.g. technician@techops.com"
+              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900" 
             />
           </div>
           <div>
@@ -55,19 +59,20 @@ export default function Register() {
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
               required 
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600" 
+              placeholder="••••••••"
+              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900" 
             />
           </div>
           <button 
             type="submit" 
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded text-sm transition"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm transition shadow-md border border-slate-900 mt-2"
           >
             Register
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
-          Already have an account? <Link to="/login" className="text-blue-600 font-semibold hover:underline">Sign In</Link>
+        <p className="text-center text-xs sm:text-sm text-slate-500 mt-6">
+          Already have an account? <Link to="/login" className="text-amber-600 font-bold hover:underline">Sign In</Link>
         </p>
       </div>
     </div>
