@@ -23,19 +23,37 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 app.use('/uploads', express.static(uploadDir));
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/baggage_db';
 
 // Disable strictPopulate globally to prevent server crashes on populate
 mongoose.set('strictPopulate', false);
 
-// MongoDB Connection
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB successfully at:', MONGO_URI);
-  })
-  .catch(err => {
-    console.error('MongoDB Connection Error:', err);
+// MongoDB Serverless Connection Helper
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected || mongoose.connection.readyState >= 1) {
+    return;
+  }
+  let MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/baggage_db';
+  if (!process.env.MONGO_URI) {
+    console.warn('WARNING: MONGO_URI environment variable is not set in Vercel!');
+  }
+  await mongoose.connect(MONGO_URI, {
+    dbName: process.env.DB_NAME || 'test'
   });
+  isConnected = true;
+  console.log('Connected to MongoDB successfully');
+};
+
+// Middleware to ensure DB connection on every request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Database Connection Middleware Error:', err);
+    return res.status(500).json({ error: 'Database connection failed: ' + err.message });
+  }
+});
 
 // Multer Storage Configuration (Vercel සහ Local සඳහා එකම විදිහට ක්‍රියාත්මක වේ)
 const storage = multer.diskStorage({
@@ -77,7 +95,7 @@ app.get('/api/view-photo', async (req, res) => {
     res.sendFile(fullPath);
   } catch (err) {
     console.error('Error serving photo:', err);
-    res.status(500).send('Error loading image');
+    res.status(500).send('Error loading image: ' + err.message);
   }
 });
 
@@ -87,8 +105,8 @@ app.post('/api/register', async (req, res) => {
     const { name, username, email, password } = req.body;
     const nameToSave = name || username;
 
-    if (!nameToSave) {
-      return res.status(400).json({ error: 'Name is required' });
+    if (!nameToSave || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
     const existingUser = await User.findOne({ email });
@@ -100,7 +118,7 @@ app.post('/api/register', async (req, res) => {
     res.status(201).json({ message: 'User registered successfully', user: newUser });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ error: 'Server error during registration' });
+    res.status(500).json({ error: err.message || 'Server error during registration' });
   }
 });
 
@@ -108,6 +126,9 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
     const user = await User.findOne({ email });
     if (!user || user.password !== password) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -115,7 +136,7 @@ app.post('/api/login', async (req, res) => {
     res.status(200).json({ message: 'Login successful', user });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error during login' });
+    res.status(500).json({ error: err.message || 'Server error during login' });
   }
 });
 
