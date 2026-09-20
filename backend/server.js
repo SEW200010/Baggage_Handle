@@ -23,8 +23,6 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 app.use('/uploads', express.static(uploadDir));
-
-// --- MONGODB CONNECTION FOR MONGO COMPASS ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/baggage_db';
 
 mongoose.connect(MONGO_URI)
@@ -55,6 +53,10 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // --- PHOTO VIEW ENDPOINT (Converts TIF/TIFF to PNG) ---
+
+app.get('/', (req, res) => {
+    res.status(200).json({ message: "Backend is running successfully!" });
+});
 app.get('/api/view-photo', async (req, res) => {
   try {
     const rawPath = req.query.path;
