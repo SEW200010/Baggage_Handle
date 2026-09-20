@@ -14,11 +14,15 @@ const Bug = require('./models/Bug');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-if (!fs.existsSync('./uploads')) {
-  fs.mkdirSync('./uploads');
+
+const uploadDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+app.use('/uploads', express.static(uploadDir));
 
 // --- MONGODB CONNECTION FOR MONGO COMPASS ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/baggage_db';
