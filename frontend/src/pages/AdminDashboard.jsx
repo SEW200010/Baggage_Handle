@@ -116,7 +116,7 @@ export default function AdminDashboard() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this incident report?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/bugs/${id}`);
+        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bugs/${id}`);
         fetchBugs();
       } catch (err) {
         console.error(err);
