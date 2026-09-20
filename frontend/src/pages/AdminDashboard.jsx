@@ -60,7 +60,7 @@ export default function AdminDashboard() {
 
   const fetchBugs = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/bugs');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/bugs`);
       setBugs(res.data);
     } catch (err) {
       console.error(err);
@@ -71,7 +71,7 @@ export default function AdminDashboard() {
 
   const fetchEquipment = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/equipment');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/equipment`);
       setEquipmentList(res.data);
     } catch (err) {
       console.error('Error fetching equipment list:', err);
@@ -83,7 +83,6 @@ export default function AdminDashboard() {
     fetchEquipment();
   }, []);
 
-  // Handle Equipment Selection in Edit Modal (Auto fill related attributes if available)
   const handleEquipmentChange = (e) => {
     const selectedName = e.target.value;
     const matchedEquipment = equipmentList.find(eq => eq.name === selectedName);
@@ -107,7 +106,7 @@ export default function AdminDashboard() {
   const updateStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Pending' ? 'Resolved' : 'Pending';
     try {
-      await axios.put(`http://localhost:5000/api/bugs/${id}`, { status: newStatus });
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/bugs/${id}`, { status: newStatus });
       fetchBugs();
     } catch (err) {
       console.error(err);
@@ -134,7 +133,7 @@ export default function AdminDashboard() {
       return normalizedPath;
     }
     const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
-    return `http://localhost:5000/api/view-photo?path=${encodeURIComponent(cleanPath)}`;
+    return `${import.meta.env.VITE_API_URL}/api/view-photo?path=${encodeURIComponent(cleanPath)}`;
   };
 
   // Open Edit Modal and populate data
@@ -165,7 +164,7 @@ export default function AdminDashboard() {
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:5000/api/bugs/${editingBug}`, formData);
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/bugs/${editingBug}`, formData);
       setEditingBug(null); // Close modal
       fetchBugs(); // Refresh table
     } catch (err) {
