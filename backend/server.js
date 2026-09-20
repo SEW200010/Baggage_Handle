@@ -47,12 +47,14 @@ mongoose.connect(MONGO_URI)
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+  destination: (req, file, cb) => {
+    cb(null, uploadDir); 
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
 });
 const upload = multer({ storage: storage });
-
-// --- PHOTO VIEW ENDPOINT (Converts TIF/TIFF to PNG) ---
 
 app.get('/', (req, res) => {
     res.status(200).json({ message: "Backend is running successfully!" });
@@ -62,8 +64,9 @@ app.get('/api/view-photo', async (req, res) => {
     const rawPath = req.query.path;
     if (!rawPath) return res.status(400).send('No path specified');
     
-    const relativePath = rawPath.replace(/^\/+/, '').replace(/\\/g, '/');
-    const fullPath = path.join(__dirname, relativePath);
+    // Vercel එකේ නම් /tmp/uploads, ලෝකල් නම් __dirname/uploads පාවිච්චි කරයි
+    const fileName = path.basename(rawPath);
+    const fullPath = path.join(uploadDir, fileName);
 
     if (!fs.existsSync(fullPath)) {
       return res.status(404).send('File not found');
@@ -83,7 +86,6 @@ app.get('/api/view-photo', async (req, res) => {
     res.status(500).send('Error loading image');
   }
 });
-
 // --- AUTH ENDPOINTS ---
 app.post('/api/register', async (req, res) => {
   try {
