@@ -81,12 +81,18 @@ app.get('/api/view-photo', async (req, res) => {
 // --- AUTH: Register Route ---
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, email, password, role } = req.body;
+    const { name, username, email, password } = req.body;
+    const nameToSave = name || username;
+
+    if (!nameToSave) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
-    const newUser = new User({ username, email, password, role });
+    const newUser = new User({ name: nameToSave, email, password });
     await newUser.save();
     res.status(201).json({ message: 'User registered successfully', user: newUser });
   } catch (err) {
@@ -124,19 +130,33 @@ app.get('/api/equipment', async (req, res) => {
 // --- BUGS: Create Bug (with image upload) ---
 app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
   try {
-    const { title, description, equipmentId, priority } = req.body;
-    const error_photo = req.file ? `/uploads/${req.file.filename}` : '';
+    const {
+      operation_type,
+      equipment_name,
+      equipment_type,
+      location,
+      category,
+      issue_type,
+      severity,
+      error_description
+    } = req.body;
+
+    const photo_path = req.file ? `/uploads/${req.file.filename}` : null;
 
     const newBug = new Bug({
-      title,
-      description,
-      equipmentId,
-      priority: priority || 'Medium',
-      error_photo
+      operation_type: operation_type || 'Arrival',
+      equipment_name: equipment_name || 'Unknown Equipment',
+      equipment_type: equipment_type || '',
+      location: location || '',
+      category: category || '',
+      issue_type: issue_type || 'None',
+      severity: severity || 'None',
+      error_description: error_description || '',
+      photo_path
     });
 
     await newBug.save();
-    res.status(201).json({ message: 'Bug reported successfully', bug: newBug });
+    res.status(201).json({ message: 'Bug reported successfully', bug: newBug, ticketId: newBug._id });
   } catch (err) {
     console.error('Error creating bug:', err);
     res.status(500).json({ error: 'Failed to create bug report' });
@@ -146,7 +166,7 @@ app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
 // --- BUGS: Get All Bugs ---
 app.get('/api/bugs', async (req, res) => {
   try {
-    const bugs = await Bug.find().populate('equipmentId');
+    const bugs = await Bug.find().sort({ created_at: -1 });
     res.status(200).json(bugs);
   } catch (err) {
     console.error('Error fetching bugs:', err);
