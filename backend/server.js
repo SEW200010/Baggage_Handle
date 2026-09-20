@@ -122,8 +122,35 @@ app.post('/api/login', async (req, res) => {
 // --- EQUIPMENT: Get All Equipment (Manual CSV uploaded data) ---
 app.get('/api/equipment', async (req, res) => {
   try {
-    const equipments = await Equipment.find();
-    res.status(200).json(equipments);
+    let equipments = await Equipment.find();
+
+    // Fallback: If Equipment.find() returns empty, check MongoDB Atlas active collections
+    if (!equipments || equipments.length === 0) {
+      const db = mongoose.connection.db;
+      if (db) {
+        const collections = await db.listCollections().toArray();
+        const names = collections.map(c => c.name);
+        const targetCol = names.find(n => ['equipment', 'equipments', 'Equipment', 'Equipments'].includes(n));
+        if (targetCol) {
+          equipments = await db.collection(targetCol).find({}).toArray();
+        }
+      }
+    }
+
+    // Normalize document fields for frontend display
+    const normalized = (equipments || []).map(eq => {
+      const doc = eq.toObject ? eq.toObject() : eq;
+      return {
+        ...doc,
+        _id: doc._id,
+        name: doc.name || doc.Name || doc['Equipment Name'] || doc['Equipment ID'] || doc.equipment_id || 'Equipment Item',
+        type: doc.type || doc.Type || doc['Equipment Type'] || '',
+        location: doc.location || doc.Location || '',
+        category: doc.category || doc.Category || doc.Catogory || ''
+      };
+    });
+
+    res.status(200).json(normalized);
   } catch (err) {
     console.error('Error fetching equipment:', err);
     res.status(500).json({ error: 'Failed to fetch equipment data' });

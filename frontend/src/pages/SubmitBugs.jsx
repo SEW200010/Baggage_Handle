@@ -178,11 +178,14 @@ export default function SubmitBugs() {
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-black focus:outline-none focus:border-amber-400"
               >
                 <option value="">-- Select Equipment from Register --</option>
-                {equipmentList.map((eq, index) => (
-                  <option key={index} value={eq.name}>
-                    {eq.name}
-                  </option>
-                ))}
+                {equipmentList.map((eq, index) => {
+                  const displayName = eq.name || eq.Name || eq['Equipment ID'] || `Equipment ${index + 1}`;
+                  return (
+                    <option key={index} value={displayName}>
+                      {displayName}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
