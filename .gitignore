@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-.env
+backend/.env
 
 # Build outputs and logs
 dist/
