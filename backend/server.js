@@ -25,6 +25,9 @@ if (!fs.existsSync(uploadDir)) {
 app.use('/uploads', express.static(uploadDir));
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/baggage_db';
 
+// Disable strictPopulate globally to prevent server crashes on populate
+mongoose.set('strictPopulate', false);
+
 // MongoDB Connection
 mongoose.connect(MONGO_URI)
   .then(() => {
