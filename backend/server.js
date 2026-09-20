@@ -15,7 +15,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
+// Vercel සඳහා /tmp/uploads සහ Local සඳහා uploads/ ෆෝල්ඩරය ස්වයංක්‍රීයව සැකසීම
 const uploadDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 
 if (!fs.existsSync(uploadDir)) {
@@ -25,30 +25,19 @@ if (!fs.existsSync(uploadDir)) {
 app.use('/uploads', express.static(uploadDir));
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/baggage_db';
 
+// MongoDB Connection
 mongoose.connect(MONGO_URI)
-  .then(async () => {
+  .then(() => {
     console.log('Connected to MongoDB successfully at:', MONGO_URI);
-    
-    // Seed default equipment list if collection is empty
-    const count = await Equipment.countDocuments();
-    if (count === 0) {
-      await Equipment.insertMany([
-        { name: 'Baggage Belt 01', type: 'Conveyor', location: 'Arrival Sector A', category: 'Mechanical' },
-        { name: 'Baggage Belt 02', type: 'Conveyor', location: 'Arrival Sector B', category: 'Mechanical' },
-        { name: 'X-Ray Scanner 01', type: 'Scanner', location: 'Security Check 1', category: 'Electrical' },
-        { name: 'Luggage Loader 03', type: 'Loader', location: 'Departure Gate 4', category: 'Hydraulic' }
-      ]);
-      console.log('Seeded default equipment list into MongoDB.');
-    }
   })
   .catch(err => {
     console.error('MongoDB Connection Error:', err);
   });
 
-// Multer Storage Configuration
+// Multer Storage Configuration (Vercel සහ Local සඳහා එකම විදිහට ක්‍රියාත්මක වේ)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir); 
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
@@ -56,9 +45,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// --- Root Endpoint ---
 app.get('/', (req, res) => {
     res.status(200).json({ message: "Backend is running successfully!" });
 });
+
+// --- Photo View Endpoint (Converts TIF/TIFF to PNG with safety checks) ---
 app.get('/api/view-photo', async (req, res) => {
   try {
     const rawPath = req.query.path;
@@ -67,7 +59,6 @@ app.get('/api/view-photo', async (req, res) => {
     const fileName = path.basename(rawPath);
     const fullPath = path.join(uploadDir, fileName);
 
-    // ෆයිල් එක /tmp/uploads හෝ uploads ෆෝල්ඩරයේ නැත්නම්, 404 වෙනුවට placeholder එකක් හෝ friendly message එකක් දෙන්න
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: 'Image expired or not found on server storage.' });
     }
@@ -86,150 +77,116 @@ app.get('/api/view-photo', async (req, res) => {
     res.status(500).send('Error loading image');
   }
 });
+
+// --- AUTH: Register Route ---
 app.post('/api/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { username, email, password, role } = req.body;
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: 'User already exists with this email' });
     }
-    const user = new User({ name, email, password });
-    await user.save();
-    res.status(201).json({ message: 'User registered successfully' });
+    const newUser = new User({ username, email, password, role });
+    await newUser.save();
+    res.status(201).json({ message: 'User registered successfully', user: newUser });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Server error during registration' });
   }
 });
 
+// --- AUTH: Login Route ---
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email, password });
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    const user = await User.findOne({ email });
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
-    res.json({ message: 'Login successful', user });
+    res.status(200).json({ message: 'Login successful', user });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error during login' });
   }
 });
 
+// --- EQUIPMENT: Get All Equipment (Manual CSV uploaded data) ---
 app.get('/api/equipment', async (req, res) => {
   try {
-    let items = await Equipment.find().lean();
- if (items.length === 0 && mongoose.connection.db) {
-      const collections = await mongoose.connection.db.listCollections().toArray();
-      const colNames = collections.map(c => c.name);
-      
-      let targetCol = colNames.find(n => n.toLowerCase().includes('equipment'));
-      if (targetCol) {
-        items = await mongoose.connection.db.collection(targetCol).find().toArray();
-      }
-    }
-
-    const normalized = items.map(item => ({
-      _id: item._id,
-      name: (item.name || item.Name || item['Equipment Name'] || item['Name '] || '').toString().trim(),
-      type: (item.type || item.Type || item['Type '] || '').toString().trim(),
-      location: (item.location || item.Location || item['Location '] || '').toString().trim(),
-      category: (item.category || item.Catogory || item.Category || item['Catogory '] || '').toString().trim(),
-      status: (item.status || item.Status || 'Active').toString().trim(),
-      equipment_id: (item['Equipment ID'] || item.equipment_id || item.id || '').toString().trim()
-    })).filter(item => item.name);
-
-    res.json(normalized);
+    const equipments = await Equipment.find();
+    res.status(200).json(equipments);
   } catch (err) {
-    console.error('Error fetching equipment list:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching equipment:', err);
+    res.status(500).json({ error: 'Failed to fetch equipment data' });
   }
 });
 
+// --- BUGS: Create Bug (with image upload) ---
 app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
   try {
-    const photo_path = req.file ? `/uploads/${req.file.filename}` : null;
-    const bug = new Bug({
-      operation_type: req.body.operation_type,
-      equipment_name: req.body.equipment_name,
-      equipment_type: req.body.equipment_type || '',
-      location: req.body.location || '',
-      category: req.body.category || '',
-      issue_type: req.body.issue_type || 'None',
-      severity: req.body.severity || 'None',
-      error_description: req.body.error_description,
-      photo_path
+    const { title, description, equipmentId, priority } = req.body;
+    const error_photo = req.file ? `/uploads/${req.file.filename}` : '';
+
+    const newBug = new Bug({
+      title,
+      description,
+      equipmentId,
+      priority: priority || 'Medium',
+      error_photo
     });
 
-    const savedBug = await bug.save();
-    const shortId = savedBug._id.toString().slice(-4).toUpperCase();
-    res.status(201).json({ message: 'Bug reported successfully', ticketId: `#GBS-${shortId}` });
+    await newBug.save();
+    res.status(201).json({ message: 'Bug reported successfully', bug: newBug });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error creating bug:', err);
+    res.status(500).json({ error: 'Failed to create bug report' });
   }
 });
 
+// --- BUGS: Get All Bugs ---
 app.get('/api/bugs', async (req, res) => {
   try {
-    const bugs = await Bug.find().sort({ created_at: -1 });
-    res.json(bugs);
+    const bugs = await Bug.find().populate('equipmentId');
+    res.status(200).json(bugs);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching bugs:', err);
+    res.status(500).json({ error: 'Failed to fetch bugs' });
   }
 });
 
+// --- BUGS: Update Bug ---
 app.put('/api/bugs/:id', async (req, res) => {
   try {
-    const allowedColumns = [
-      'operation_type', 
-      'equipment_name', 
-      'equipment_type', 
-      'location', 
-      'category', 
-      'issue_type', 
-      'severity', 
-      'error_description', 
-      'photo_path', 
-      'status'
-    ];
-
-    const updates = {};
-    for (const key of Object.keys(req.body)) {
-      if (allowedColumns.includes(key)) {
-        updates[key] = req.body[key];
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'No valid fields provided to update' });
-    }
-
-    const updatedBug = await Bug.findByIdAndUpdate(
-      req.params.id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
+    const { id } = req.params;
+    const updatedBug = await Bug.findByIdAndUpdate(id, req.body, { new: true });
     if (!updatedBug) {
-      return res.status(404).json({ error: 'Report not found' });
+      return res.status(404).json({ error: 'Bug not found' });
     }
-
-    res.json({ message: 'Bug report updated successfully', bug: updatedBug });
+    res.status(200).json({ message: 'Bug updated successfully', bug: updatedBug });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error updating bug:', err);
+    res.status(500).json({ error: 'Failed to update bug' });
   }
 });
 
+// --- BUGS: Delete Bug ---
 app.delete('/api/bugs/:id', async (req, res) => {
   try {
-    const deletedBug = await Bug.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+    const deletedBug = await Bug.findByIdAndDelete(id);
     if (!deletedBug) {
-      return res.status(404).json({ error: 'Report not found' });
+      return res.status(404).json({ error: 'Bug not found' });
     }
-    res.json({ message: 'Report deleted successfully' });
+    res.status(200).json({ message: 'Bug deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error deleting bug:', err);
+    res.status(500).json({ error: 'Failed to delete bug' });
   }
 });
 
-app.listen(5000, () => {
-  console.log('Server running on port 5000 (MongoDB Compass Ready)');
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Legacy server listening on port ${PORT}`);
 });
+
+module.exports = app;
