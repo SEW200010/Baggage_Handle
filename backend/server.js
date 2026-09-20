@@ -64,12 +64,12 @@ app.get('/api/view-photo', async (req, res) => {
     const rawPath = req.query.path;
     if (!rawPath) return res.status(400).send('No path specified');
     
-    // Vercel එකේ නම් /tmp/uploads, ලෝකල් නම් __dirname/uploads පාවිච්චි කරයි
     const fileName = path.basename(rawPath);
     const fullPath = path.join(uploadDir, fileName);
 
+    // ෆයිල් එක /tmp/uploads හෝ uploads ෆෝල්ඩරයේ නැත්නම්, 404 වෙනුවට placeholder එකක් හෝ friendly message එකක් දෙන්න
     if (!fs.existsSync(fullPath)) {
-      return res.status(404).send('File not found');
+      return res.status(404).json({ error: 'Image expired or not found on server storage.' });
     }
 
     const ext = path.extname(fullPath).toLowerCase();
@@ -86,7 +86,6 @@ app.get('/api/view-photo', async (req, res) => {
     res.status(500).send('Error loading image');
   }
 });
-// --- AUTH ENDPOINTS ---
 app.post('/api/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -115,13 +114,10 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --- EQUIPMENT LIST ENDPOINT (Normalized for Mongo Compass CSV Import) ---
 app.get('/api/equipment', async (req, res) => {
   try {
     let items = await Equipment.find().lean();
-
-    // If Equipment.find() returns 0, check other potential collection names (e.g. 'equipments' or 'Equipment')
-    if (items.length === 0 && mongoose.connection.db) {
+ if (items.length === 0 && mongoose.connection.db) {
       const collections = await mongoose.connection.db.listCollections().toArray();
       const colNames = collections.map(c => c.name);
       
@@ -131,7 +127,6 @@ app.get('/api/equipment', async (req, res) => {
       }
     }
 
-    // Normalize field names from CSV imports (Name, Type, Location, Catogory, Status)
     const normalized = items.map(item => ({
       _id: item._id,
       name: (item.name || item.Name || item['Equipment Name'] || item['Name '] || '').toString().trim(),
@@ -149,9 +144,6 @@ app.get('/api/equipment', async (req, res) => {
   }
 });
 
-// --- BUG REPORTING ENDPOINTS ---
-
-// 1. Submit a new bug report
 app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
   try {
     const photo_path = req.file ? `/uploads/${req.file.filename}` : null;
@@ -175,7 +167,6 @@ app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
   }
 });
 
-// 2. Get all bug reports
 app.get('/api/bugs', async (req, res) => {
   try {
     const bugs = await Bug.find().sort({ created_at: -1 });
@@ -185,7 +176,6 @@ app.get('/api/bugs', async (req, res) => {
   }
 });
 
-// 3. Update bug report (PUT)
 app.put('/api/bugs/:id', async (req, res) => {
   try {
     const allowedColumns = [
@@ -228,7 +218,6 @@ app.put('/api/bugs/:id', async (req, res) => {
   }
 });
 
-// 4. Delete a bug report
 app.delete('/api/bugs/:id', async (req, res) => {
   try {
     const deletedBug = await Bug.findByIdAndDelete(req.params.id);
