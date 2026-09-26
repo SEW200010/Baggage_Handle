@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function Register() {
@@ -12,7 +13,7 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/register`, { name, email, password });
+      await axios.post(`${API_URL}/api/register`, { name, email, password });
       navigate('/login');
     } catch (err) {
       setError('Registration failed. Email might already exist.');

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -60,7 +61,7 @@ export default function AdminDashboard() {
 
   const fetchBugs = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/bugs`);
+      const res = await axios.get(`${API_URL}/api/bugs`);
       setBugs(res.data);
     } catch (err) {
       console.error(err);
@@ -71,7 +72,7 @@ export default function AdminDashboard() {
 
   const fetchEquipment = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/equipment`);
+      const res = await axios.get(`${API_URL}/api/equipment`);
       setEquipmentList(res.data);
     } catch (err) {
       console.error('Error fetching equipment list:', err);
@@ -106,7 +107,7 @@ export default function AdminDashboard() {
   const updateStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Pending' ? 'Resolved' : 'Pending';
     try {
-      await axios.put(`${import.meta.env.VITE_API_URL}/api/bugs/${id}`, { status: newStatus });
+      await axios.put(`${API_URL}/api/bugs/${id}`, { status: newStatus });
       fetchBugs();
     } catch (err) {
       console.error(err);
@@ -116,7 +117,7 @@ export default function AdminDashboard() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this incident report?')) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bugs/${id}`);
+        await axios.delete(`${API_URL}/api/bugs/${id}`);
         fetchBugs();
       } catch (err) {
         console.error(err);
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
       return normalizedPath;
     }
     const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
-    return `${import.meta.env.VITE_API_URL}/api/view-photo?path=${encodeURIComponent(cleanPath)}`;
+    return `${API_URL}/api/view-photo?path=${encodeURIComponent(cleanPath)}`;
   };
 
   // Open Edit Modal and populate data
@@ -164,7 +165,7 @@ export default function AdminDashboard() {
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${import.meta.env.VITE_API_URL}/api/bugs/${editingBug}`, formData);
+      await axios.put(`${API_URL}/api/bugs/${editingBug}`, formData);
       setEditingBug(null); // Close modal
       fetchBugs(); // Refresh table
     } catch (err) {

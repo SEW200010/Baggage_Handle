@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { API_URL } from '../api';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function Login({ onLogin }) {
@@ -23,7 +24,7 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/login`, formData);
+      const res = await axios.post(`${API_URL}/api/login`, formData);
       
       // Save user data & login status
       localStorage.setItem('user', JSON.stringify(res.data.user));

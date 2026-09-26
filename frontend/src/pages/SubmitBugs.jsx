@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../api';
 import { Camera, Upload, CheckCircle2 } from 'lucide-react';
 
 export default function SubmitBugs() {
@@ -25,7 +26,7 @@ export default function SubmitBugs() {
 
   // Fetch equipment list from backend on load
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL}/api/equipment`)
+    axios.get(`${API_URL}/api/equipment`)
       .then(res => setEquipmentList(res.data))
       .catch(err => console.error("Error fetching equipment:", err));
   }, []);
@@ -90,7 +91,7 @@ export default function SubmitBugs() {
     }
 
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/bugs`, data, {
+      const res = await axios.post(`${API_URL}/api/bugs`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setSuccessMessage(`Fault report submitted successfully! Ticket ID: ${res.data.ticketId}`);
