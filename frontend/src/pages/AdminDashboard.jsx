@@ -1,8 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { API_URL } from '../api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const CONDITION_STYLES = {
+  'OK': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Attention': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Defect': 'bg-rose-50 text-rose-700 border-rose-200',
+  'N/A': 'bg-slate-100 text-slate-600 border-slate-200'
+};
+
+// Reports saved before submitter tracking have no name
+const UNKNOWN_SUBMITTER = 'Unknown';
+const getSubmitter = (bug) => bug.submitted_by || UNKNOWN_SUBMITTER;
+
+const countStatus =(checklist, status) => (checklist || []).filter(row => row.status === status).length;
+
+// Compact badges: "9 OK", "1 Attention", "1 Defect" (only non-zero counts)
+function ChecklistSummary({ checklist }) {
+  if (!checklist || checklist.length === 0) {
+    return <span className="text-slate-400 text-xs italic">No Checklist</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {Object.keys(CONDITION_STYLES).map(status => {
+        const count = countStatus(checklist, status);
+        if (!count) return null;
+        const percent = Math.round((count / checklist.length) * 1000) / 10;
+        return (
+          <span key={status} className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${CONDITION_STYLES[status]}`}>
+            {count} {status} ({percent}%)
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [bugs, setBugs] = useState([]);
@@ -10,13 +43,18 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [selectedImage, setSelectedImage] = useState(null);
+  const [viewingChecklist, setViewingChecklist] = useState(null);
 
   // Date Filter State
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [submitterFilter, setSubmitterFilter] = useState('');
 
-  // Filter bugs by Date Range
+  const submitters = [...new Set(bugs.map(getSubmitter))].sort((a, b) => a.localeCompare(b));
+
+  // Filter bugs by submitter and Date Range
   const filteredBugs = bugs.filter(bug => {
+    if (submitterFilter && getSubmitter(bug) !== submitterFilter) return false;
     if (!bug.created_at) return true;
     const bugDate = new Date(bug.created_at);
 
@@ -61,7 +99,7 @@ export default function AdminDashboard() {
 
   const fetchBugs = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/bugs`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/bugs`);
       setBugs(res.data);
     } catch (err) {
       console.error(err);
@@ -72,7 +110,7 @@ export default function AdminDashboard() {
 
   const fetchEquipment = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/equipment`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/equipment`);
       setEquipmentList(res.data);
     } catch (err) {
       console.error('Error fetching equipment list:', err);
@@ -107,7 +145,7 @@ export default function AdminDashboard() {
   const updateStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Pending' ? 'Resolved' : 'Pending';
     try {
-      await axios.put(`${API_URL}/api/bugs/${id}`, { status: newStatus });
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/bugs/${id}`, { status: newStatus });
       fetchBugs();
     } catch (err) {
       console.error(err);
@@ -117,7 +155,7 @@ export default function AdminDashboard() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this incident report?')) {
       try {
-        await axios.delete(`${API_URL}/api/bugs/${id}`);
+        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bugs/${id}`);
         fetchBugs();
       } catch (err) {
         console.error(err);
@@ -134,7 +172,7 @@ export default function AdminDashboard() {
       return normalizedPath;
     }
     const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
-    return `${API_URL}/api/view-photo?path=${encodeURIComponent(cleanPath)}`;
+    return `${import.meta.env.VITE_API_URL}/api/view-photo?path=${encodeURIComponent(cleanPath)}`;
   };
 
   // Open Edit Modal and populate data
@@ -165,7 +203,7 @@ export default function AdminDashboard() {
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_URL}/api/bugs/${editingBug}`, formData);
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/bugs/${editingBug}`, formData);
       setEditingBug(null); // Close modal
       fetchBugs(); // Refresh table
     } catch (err) {
@@ -197,19 +235,28 @@ export default function AdminDashboard() {
     const dateRangeText = (startDate || endDate)
       ? `Date Filter: ${startDate || 'Start'} to ${endDate || 'Today'}`
       : 'Date Filter: All Time Records';
-    doc.text(`Generated: ${new Date().toLocaleString()}  |  ${dateRangeText}`, 14, 22);
+    const submitterText = submitterFilter ? `  |  Submitted By: ${submitterFilter}` : '';
+    doc.text(`Generated: ${new Date().toLocaleString()}  |  ${dateRangeText}${submitterText}`, 14, 22);
 
-    const tableColumn = ["Date & Time", "Sector", "Equipment Name", "Type", "Location", "Category", "Status"];
+    const tableColumn = ["Date & Time", "Submitted By", "Sector", "Equipment Name", "Type", "Location", "Category", "Checklist", "Status"];
     const tableRows = [];
 
     filteredBugs.forEach(bug => {
       const rowData = [
         new Date(bug.created_at).toLocaleString(),
+        getSubmitter(bug),
         bug.operation_type,
         bug.equipment_name,
         bug.equipment_type || 'N/A',
         bug.location || 'N/A',
         bug.category || 'N/A',
+        // List only items that need action, e.g. "Drive unit: Defect"
+        bug.checklist?.length
+          ? (bug.checklist
+              .filter(row => row.status === 'Attention' || row.status === 'Defect')
+              .map(row => `${row.item}: ${row.status}`)
+              .join('\n') || 'All OK')
+          : 'N/A',
         bug.status
       ];
       tableRows.push(rowData);
@@ -232,7 +279,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] bg-slate-100 py-4 sm:py-8 px-3 sm:px-6 lg:px-12 relative">
+    <div className="min-h-[calc(100vh-5rem)] py-4 sm:py-8 px-3 sm:px-6 lg:px-12 relative">
       <div className="w-full space-y-6">
         
         {/* Top Header Card */}
@@ -291,9 +338,22 @@ export default function AdminDashboard() {
                 className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-400"
               />
             </div>
-            {(startDate || endDate) && (
-              <button 
-                onClick={() => { setStartDate(''); setEndDate(''); }}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-500">Submitted By</label>
+              <select
+                value={submitterFilter}
+                onChange={(e) => setSubmitterFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-400"
+              >
+                <option value="">All Users</option>
+                {submitters.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+            {(startDate || endDate || submitterFilter) && (
+              <button
+                onClick={() => { setStartDate(''); setEndDate(''); setSubmitterFilter(''); }}
                 className="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-2 rounded-xl border border-rose-200 transition"
               >
                 Clear Filter ✕
@@ -313,7 +373,7 @@ export default function AdminDashboard() {
           {loading ? (
             <div className="p-12 text-center text-sm text-slate-500 font-bold">Loading incident records...</div>
           ) : filteredBugs.length === 0 ? (
-            <div className="p-12 text-center text-sm text-slate-500 font-bold">No fault reports match the selected date range.</div>
+            <div className="p-12 text-center text-sm text-slate-500 font-bold">No fault reports match the selected filters.</div>
           ) : (
             <>
               {/* DESKTOP / LAPTOP TABLE VIEW (Hidden on mobile) */}
@@ -322,11 +382,13 @@ export default function AdminDashboard() {
                   <thead className="bg-slate-50 text-xs font-bold text-slate-700 uppercase tracking-wider">
                     <tr>
                       <th className="px-4 sm:px-6 py-4">Date & Time</th>
+                      <th className="px-4 sm:px-6 py-4">Submitted By</th>
                       <th className="px-4 sm:px-6 py-4">Sector</th>
                       <th className="px-4 sm:px-6 py-4">Equipment Name</th>
                       <th className="px-4 sm:px-6 py-4">Type</th>
                       <th className="px-4 sm:px-6 py-4">Location</th>
                       <th className="px-4 sm:px-6 py-4">Category</th>
+                      <th className="px-4 sm:px-6 py-4">Checklist</th>
                       <th className="px-4 sm:px-6 py-4">Description</th>
                       <th className="px-4 sm:px-6 py-4">Photo</th>
                       <th className="px-4 sm:px-6 py-4">Status</th>
@@ -339,6 +401,19 @@ export default function AdminDashboard() {
                         <td className="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-600">
                           {formatDateTime(bug.created_at)}
                         </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setSubmitterFilter(getSubmitter(bug))}
+                            className={`text-left hover:underline ${bug.submitted_by ? 'font-bold text-slate-900' : 'text-xs italic text-slate-400'}`}
+                            title="Show only this user's reports"
+                          >
+                            {getSubmitter(bug)}
+                          </button>
+                          {bug.submitted_by_username && (
+                            <span className="block text-[11px] font-semibold text-slate-500">@{bug.submitted_by_username}</span>
+                          )}
+                        </td>
                         <td className="px-4 sm:px-6 py-4 font-bold">
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                             bug.operation_type === 'Arrival' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
@@ -350,6 +425,20 @@ export default function AdminDashboard() {
                         <td className="px-4 sm:px-6 py-4 text-slate-600">{bug.equipment_type || 'N/A'}</td>
                         <td className="px-4 sm:px-6 py-4 text-slate-600">{bug.location || 'N/A'}</td>
                         <td className="px-4 sm:px-6 py-4 text-slate-600 font-semibold">{bug.category || 'N/A'}</td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <ChecklistSummary checklist={bug.checklist} />
+                            {bug.checklist?.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingChecklist(bug)}
+                                className="text-slate-700 hover:text-slate-900 font-bold text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg border border-slate-300 transition"
+                              >
+                                View
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 sm:px-6 py-4 text-slate-600 max-w-xs truncate">{bug.error_description}</td>
                         <td className="px-4 sm:px-6 py-4">
                           {bug.photo_path ? (
@@ -426,6 +515,16 @@ export default function AdminDashboard() {
                     {/* Equipment Main Info */}
                     <div>
                       <h4 className="text-base font-bold text-slate-900">{bug.equipment_name}</h4>
+                      <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                        Submitted by{' '}
+                        <button
+                          type="button"
+                          onClick={() => setSubmitterFilter(getSubmitter(bug))}
+                          className="font-bold text-slate-800 hover:underline"
+                        >
+                          {getSubmitter(bug)}
+                        </button>
+                      </p>
                       <div className="flex flex-wrap gap-1.5 text-xs text-slate-600 mt-1.5">
                         {bug.equipment_type && (
                           <span className="bg-slate-100 px-2 py-0.5 rounded-md font-semibold text-slate-700">Type: {bug.equipment_type}</span>
@@ -438,6 +537,20 @@ export default function AdminDashboard() {
                         )}
                       </div>
                     </div>
+
+                    {/* Checklist Summary */}
+                    {bug.checklist?.length > 0 && (
+                      <div className="flex items-center justify-between gap-2">
+                        <ChecklistSummary checklist={bug.checklist} />
+                        <button
+                          type="button"
+                          onClick={() => setViewingChecklist(bug)}
+                          className="text-slate-700 font-bold text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-300 transition flex-shrink-0"
+                        >
+                          View Checklist
+                        </button>
+                      </div>
+                    )}
 
                     {/* Error Description */}
                     {bug.error_description && (
@@ -615,6 +728,71 @@ export default function AdminDashboard() {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* CHECKLIST DETAILS MODAL */}
+      {viewingChecklist && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+          onClick={() => setViewingChecklist(null)}
+        >
+          <div
+            className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-slate-900 text-white p-6 border-b-4 border-amber-400 flex justify-between items-start gap-4">
+              <div>
+                <h3 className="text-lg font-bold">{viewingChecklist.equipment_name}</h3>
+                <p className="text-xs text-slate-400 font-semibold mt-1">
+                  {formatDateTime(viewingChecklist.created_at)}
+                  {viewingChecklist.location ? ` · ${viewingChecklist.location}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingChecklist(null)}
+                className="text-slate-400 hover:text-white font-bold text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3 w-12">No.</th>
+                      <th className="px-4 py-3">Inspection Item</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {viewingChecklist.checklist.map((row, index) => (
+                      <tr key={row.item}>
+                        <td className="px-4 py-2.5 text-slate-500 font-semibold">{index + 1}</td>
+                        <td className="px-4 py-2.5 font-semibold text-slate-800">{row.item}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${CONDITION_STYLES[row.status] || CONDITION_STYLES['N/A']}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-600 text-xs">{row.remarks || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {viewingChecklist.error_description && (
+                <div className="m-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-700">
+                  <span className="font-bold text-slate-800 block mb-0.5">General Remarks:</span>
+                  {viewingChecklist.error_description}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
