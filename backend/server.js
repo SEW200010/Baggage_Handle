@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -102,18 +103,26 @@ app.get('/api/view-photo', async (req, res) => {
 // --- AUTH: Register Route ---
 app.post('/api/register', async (req, res) => {
   try {
-    const { name, username, email, password } = req.body;
-    const nameToSave = name || username;
+    const { name, password } = req.body;
+    const username = (req.body.username || '').trim().toLowerCase();
+    const email = (req.body.email || '').trim().toLowerCase();
 
-    if (!nameToSave || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    if (!name || !username || !email || !password) {
+      return res.status(400).json({ error: 'Name, username, email, and password are required' });
+    }
+    if (/\s/.test(username)) {
+      return res.status(400).json({ error: 'Username cannot contain spaces' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const usernameTaken = await User.findOne({ username });
+    if (usernameTaken) {
+      return res.status(400).json({ error: 'This username is already taken' });
+    }
+    const existingUser = await User.findOne({ email }).collation({ locale: 'en', strength: 2 });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
-    const newUser = new User({ name: nameToSave, email, password });
+    const newUser = new User({ name, username, email, password });
     await newUser.save();
     res.status(201).json({ message: 'User registered successfully', user: newUser });
   } catch (err) {
@@ -125,13 +134,21 @@ app.post('/api/register', async (req, res) => {
 // --- AUTH: Login Route ---
 app.post('/api/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    const { password } = req.body;
+    const username = (req.body.username || '').trim();
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
-    const user = await User.findOne({ email });
-    if (!user || user.password !== password) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    // Older accounts have no username, so they sign in with the name they registered with
+    const candidates = await User.find({
+      $or: [
+        { username },
+        { username: { $exists: false }, name: username }
+      ]
+    }).collation({ locale: 'en', strength: 2 });
+    const user = candidates.find(u => u.password === password);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
     res.status(200).json({ message: 'Login successful', user });
   } catch (err) {
@@ -189,10 +206,22 @@ app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
       category,
       issue_type,
       severity,
-      error_description
+      error_description,
+      submitted_by,
+      submitted_by_username
     } = req.body;
 
     const photo_path = req.file ? `/uploads/${req.file.filename}` : null;
+
+    // Checklist arrives as a JSON string because the request is multipart/form-data
+    let checklist = [];
+    if (req.body.checklist) {
+      try {
+        checklist = JSON.parse(req.body.checklist);
+      } catch {
+        return res.status(400).json({ error: 'Invalid checklist data' });
+      }
+    }
 
     const newBug = new Bug({
       operation_type: operation_type || 'Arrival',
@@ -203,7 +232,10 @@ app.post('/api/bugs', upload.single('error_photo'), async (req, res) => {
       issue_type: issue_type || 'None',
       severity: severity || 'None',
       error_description: error_description || '',
-      photo_path
+      checklist,
+      photo_path,
+      submitted_by: submitted_by || '',
+      submitted_by_username: submitted_by_username || ''
     });
 
     await newBug.save();
