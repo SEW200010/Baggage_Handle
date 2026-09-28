@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { API_URL } from '../api';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function Login({ onLogin }) {
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -24,7 +23,7 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      const res = await axios.post(`${API_URL}/api/login`, formData);
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/login`, formData);
       
       // Save user data & login status
       localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -38,18 +37,21 @@ export default function Login({ onLogin }) {
       navigate('/submit-bugs');
       
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.error || 'Invalid email or password. Please try again.');
+      // 401 just means wrong credentials; only log unexpected failures
+      if (err.response?.status !== 401) {
+        console.error(err);
+      }
+      setError(err.response?.data?.error || 'Invalid username or password. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] bg-slate-100 py-12 px-6 flex justify-center items-center">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className="min-h-[calc(100vh-5rem)] py-12 px-6 flex justify-center items-center">
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
         <div className="bg-slate-900 text-white p-8 border-b-4 border-amber-400 text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Tech Ops</h2>
+          <h2 className="text-2xl font-bold tracking-tight">ConveyCare</h2>
           <p className="text-xs text-center sm:text-sm text-slate-500 mb-6">Equipment Maintenance Portal</p>
         </div>
 
@@ -64,15 +66,17 @@ export default function Login({ onLogin }) {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-              Email Address *
+              Username *
             </label>
-            <input 
-              type="email" 
-              name="email"
+            <input
+              type="text"
+              name="username"
               required
-              value={formData.email}
+              autoComplete="username"
+              autoCapitalize="none"
+              value={formData.username}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder="Enter your username"
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-400"
             />
           </div>
