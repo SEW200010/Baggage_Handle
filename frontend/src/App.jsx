@@ -5,6 +5,7 @@ import SubmitBugs from './pages/SubmitBugs.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import bgImage from './assets/baggage-bg.png';
 
 // Protected Route Component (if not logged in, redirect to login page)
 const ProtectedRoute = ({ isLoggedIn, children }) => {
@@ -29,7 +30,18 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50 font-sans antialiased text-slate-800">
+      <div className="min-h-screen font-sans antialiased text-slate-800">
+        {/* Fixed layer instead of background-attachment: fixed, which mobile Safari ignores */}
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 -z-10"
+          style={{
+            backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.55)), url(${bgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
         <Navbar isLoggedIn={isLoggedIn} onLogout={handleLogout} />
         <Routes>
           <Route 
