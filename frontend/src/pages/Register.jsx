@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { API_URL } from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function Register() {
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,16 +13,19 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/api/register`, { name, email, password });
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/register`, { name, username, email, password });
       navigate('/login');
     } catch (err) {
-      setError('Registration failed. Email might already exist.');
+      setError(err.response?.data?.error || 'Registration failed. Email might already exist.');
     }
   };
 
   return (
-    <div style={{ fontFamily: '"Times New Roman", Times, serif' }} className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200">
+    <div
+      style={{ fontFamily: '"Times New Roman", Times, serif' }}
+      className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8"
+    >
+      <div className="max-w-md w-full bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-200">
         <div className="text-black p-8  text-center">
           <h2 className="text-xl text-center sm:text-3xl font-bold mb-1">Staff Registration</h2>
           <p className="text-xs text-center sm:text-lg mb-6">Create a new account for bug reporting.</p>
@@ -43,13 +46,28 @@ export default function Register() {
             />
           </div>
           <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              autoCapitalize="none"
+              pattern="\S+"
+              title="Username cannot contain spaces"
+              placeholder="e.g. johndoe"
+              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            />
+          </div>
+          <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Email Address</label>
             <input 
               type="email" 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
               required 
-              placeholder="e.g. technician@techops.com"
+              placeholder="e.g. technician@conveycare.com"
               className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900" 
             />
           </div>
