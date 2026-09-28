@@ -33,7 +33,7 @@ export default function Navbar({ isLoggedIn, onLogout }) {
           </div>
           <div className="flex flex-col justify-center">
             <span className="text-xl sm:text-2xl md:text-3xl tracking-wide text-white font-bold leading-tight">
-              TechOps
+              ConveyCare
             </span>
             <span className="text-[10px] sm:text-xs md:text-sm text-amber-400 uppercase tracking-wider font-semibold">
               Equipment Maintenance
