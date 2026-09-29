@@ -2,6 +2,8 @@
 
 Baggage Handle is a baggage and equipment tracking / issue-reporting application for airport-style operations. It combines a React frontend with an Express + MongoDB backend to support user authentication, equipment viewing, and bug / issue submission with photo attachments.
 
+https://baggage-handle-g6i4.vercel.app
+
 ## Project Structure
 
 - `frontend/` - React + Vite web application
